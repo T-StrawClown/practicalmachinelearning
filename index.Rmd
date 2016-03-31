@@ -97,4 +97,4 @@ Applying model to the test data provides the following predictions, good enough 
 print(pred.results)
 ```
 
-R code for reproducint this project can be found here:   https://github.com/T-StrawClown/practicalmachinelearning
+R code for reproducing this project can be found here:   https://github.com/T-StrawClown/practicalmachinelearning
