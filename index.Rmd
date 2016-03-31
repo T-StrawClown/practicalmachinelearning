@@ -5,18 +5,96 @@ date: "March 30, 2016"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### Summary
+This document is a part of the Practical Machine Learning by JHU course on Coursera describing how a prediction model was built in order to achieve the objectives set by course project.  
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).  
 
-```{r}
-summary(cars)
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. 
+Read more: http://groupware.les.inf.puc-rio.br/har#ixzz44SkACKS3
+
+The goal of this project is use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to build machine learning algorithm and apply it to the 20 test cases available in the test data, predicting the manner in which participants did the exercise.  
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv  
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv  
+
+### Modelling Approach
+Considering available computing capacity, the size and complexity of training data set I chose to:  
+* use only variables that are available in testing set, excluding those not containing any values (completely empty columns) and variables unrelated to measurements (such as timestamps)  
+* split the training data into training and validation dataset  
+* pre-process data using Pricipal Compomnents Analysis in order to reduce number of variables retaining 95% of variance explained  
+* train 3 predictors on the training set  
+* combine them together and train the ultimate prediction model on the validation set  
+
+### Data Preparation
+Removing first 7 variables and variables that have no values in test data I get the following list of variables, which are going to be used for model training and predictions: 
+
+```{r, echo = FALSE}
+load(paste(getwd(), "course_project_data.RData", sep = "/"))
+print(names(ds.tr))
 ```
 
-You can also embed plots, for example:
+Now I'll split the training data into 2 partition - 60% of data dedicated to the *training set* (`r dim(ds.tr.tr)[1]` cases) and 40% to the *validation set* (`r dim(ds.tr.vl)[1]` cases).
 
-```{r, echo=FALSE}
-plot(cars)
+Athough number of variables is reduced from 159 to 52, it is still a lot considering computational power that I posses, thus I have decided to do PCA on the *training set* retaining 95% or variance explained, which further reduces number of variables to 25.
+
+```{r, echo = FALSE}
+print(ds.tr.pca)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Now my *training set* is `r dim(ds.tr.tr)[1]`x`r dim(ds.tr.tr)[2]` and my *validation set* is `r dim(ds.tr.vl)[1]`x`r dim(ds.tr.vl)[2]`.
+
+### Creating Predictors
+After numerous failed attempts I was able to identify 3 well performing algorithms that I am going to use to create predictors - Random Forest, Support Vector Machine and C5.0 Decission Trees. I'm using 6 folds cross validation for model training and tuning.
+
+**Random Forest**
+```{r, echo = FALSE}
+print(mdl.rf)
+plot(mdl.rf)
+```
+
+Accuracy of best perorming model (using 2 randomly selected predictor to construct tree *mtry = 2*) Random Forest applied ot the *validation set* is really good, just class D falls a bit behind.
+
+```{r, echo = FALSE}
+print(conf.rf)
+```
+
+**C5.0 Decision Tree**
+```{r, echo = FALSE}
+print(mdl.c50)
+plot(mdl.c50)
+```
+
+Again, good accuracy on the *validation set*. 
+```{r, echo = FALSE}
+print(conf.c50)
+```
+
+**Support Vector Machine**
+```{r, echo = FALSE, message = FALSE}
+require(e1071)
+print(summary(mdl.svm.tuned))
+plot(mdl.svm.tuned)
+```
+
+SVM produces the best accuracy of all three models on the *validation set*.
+```{r, echo = FALSE, message = FALSE}
+print(conf.svm)
+```
+  
+### Combining Predictors
+Next step is to create the ultimate model for final prediction on the test data. I'm going to split my *validation set* set in half and use one half for training the ultimate model and the other half for validating it. Now my *ultimate training set* will contain just 3 variables - predictions from Random Forest, C5.0 Decission Tree and SVM. Since SVM performed best of all in first round, I'm going to use it to build the ultimate model, tune it and apply it on the test data.  
+After some tuning I've found good parameters for SVM - gamma = 0.06 and cost = 10. Applying this algorithm on the *ultimate validation set* gives 95% overall accuracy rate.
+```{r, echo = FALSE}
+print(conf.final)
+```
+
+Applying model to the test data provides the following predictions, good enough to score 18 out of 20:
+```{r, echo = FALSE}
+print(pred.results)
+```
+
+R code for reproducint this project can be found here:   https://github.com/T-StrawClown/practicalmachinelearning
